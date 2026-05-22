@@ -9,6 +9,7 @@
   let currentYear  = new Date().getFullYear();
   let currentMonth = new Date().getMonth();
   let allEvents    = [];
+  const today      = new Date();
 
   const MONTH_NAMES = ["January","February","March","April","May","June",
     "July","August","September","October","November","December"];
@@ -96,7 +97,6 @@
     });
     grid.appendChild(dowRow);
 
-    const today      = new Date();
     const firstDay   = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMon  = new Date(currentYear, currentMonth + 1, 0).getDate();
     const prevDays   = new Date(currentYear, currentMonth, 0).getDate();
