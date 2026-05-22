@@ -48,7 +48,7 @@ const CONFIG = {
       bgColor: "#fac775",
       textColor: "#633806",
       id: "jodie@connellyfamily.org"
-    }
+    },
     {
       name: "Holidays",
       color: "#e24b4a",
