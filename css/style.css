@@ -188,7 +188,7 @@ body {
 }
 
 .day-cell {
-  min-height: 115px;
+  min-height: 130px;
   padding: 4px 0 4px;
   border-right: 0.5px solid #e8e8e4;
   border-bottom: 0.5px solid #e8e8e4;
@@ -212,7 +212,7 @@ body {
 .day-cell.other-month .day-num { color: #ccc; }
 .day-num.today { background: #1a3a2a; color: white; font-weight: 600; }
 
-/* ── Event slots (3 rows per cell) ─────────────────────── */
+/* ── Event slots (MAX_ROWS rows per cell) ───────────────── */
 .event-slot {
   height: 20px;
   margin: 1px 0;
@@ -223,7 +223,7 @@ body {
 /* ── Event pills ────────────────────────────────────────── */
 .event-pill {
   position: absolute;
-  left: 0;
+  left: 2px;
   right: 2px;
   top: 1px;
   height: 18px;
@@ -239,15 +239,19 @@ body {
   z-index: 1;
 }
 
-/* Multi-day pills extend across cells via width override */
+/* Multi-day pills span across N cells using CSS custom property */
 .event-pill.multi-day {
-  border-radius: 3px 0 0 3px;
-  right: 0;
+  /* Each cell is 1/7 of the grid. We calculate width as N cells minus gaps */
+  right: auto;
+  width: calc(var(--span, 1) * 100% + (var(--span, 1) - 1) * 1px);
+  border-radius: 3px;
+  z-index: 2;
 }
 
 .event-spacer {
   height: 18px;
   margin-top: 1px;
+  visibility: hidden;
 }
 
 .event-more {

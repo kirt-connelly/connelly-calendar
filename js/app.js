@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  const MAX_ROWS = 4; // visible event rows per cell before "+N more"
+  const MAX_ROWS = 5;
 
   let currentYear  = new Date().getFullYear();
   let currentMonth = new Date().getMonth();
@@ -46,7 +46,6 @@
   async function fetchCalendarEvents(cal, year, month) {
     const timeMin = new Date(year, month, 1).toISOString();
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-
     const calId = encodeURIComponent(cal.id);
     const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`
       + `?key=AIzaSyANgqTgULK9wuIqU2IggqbothFP3Yz-UZc`
@@ -78,7 +77,6 @@
           title:     item.summary || "(private)",
           start, end,
           allDay:    isAllDay,
-          calName:   cal.name,
           bgColor:   cal.bgColor,
           textColor: cal.textColor
         };
@@ -100,6 +98,19 @@
     renderGrid();
   }
 
+  // ── Helpers ────────────────────────────────────────────────
+  function startOfDay(d) {
+    const c = new Date(d);
+    c.setHours(0, 0, 0, 0);
+    return c;
+  }
+
+  function addDays(d, n) {
+    const c = new Date(d);
+    c.setDate(c.getDate() + n);
+    return c;
+  }
+
   // ── Calendar Rendering ─────────────────────────────────────
   function renderGrid() {
     document.getElementById("month-label").textContent =
@@ -108,6 +119,7 @@
     const grid = document.getElementById("cal-grid");
     grid.innerHTML = "";
 
+    // Day of week headers
     DAY_NAMES.forEach(d => {
       const h = document.createElement("div");
       h.className = "day-header";
@@ -120,153 +132,152 @@
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const prevDays    = new Date(currentYear, currentMonth, 0).getDate();
     const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+    const numWeeks    = totalCells / 7;
 
-    // Build cells and assign actual dates
+    // Build cell data with correct dates
     const cells = [];
     for (let i = 0; i < totalCells; i++) {
       let dayNum, inMonth, cellDate;
       if (i < firstDay) {
         dayNum = prevDays - firstDay + 1 + i;
         inMonth = false;
-        cellDate = new Date(currentMonth === 0 ? currentYear - 1 : currentYear,
-                            currentMonth === 0 ? 11 : currentMonth - 1, dayNum);
+        const m = currentMonth === 0 ? 11 : currentMonth - 1;
+        const y = currentMonth === 0 ? currentYear - 1 : currentYear;
+        cellDate = new Date(y, m, dayNum);
       } else if (i >= firstDay + daysInMonth) {
         dayNum = i - firstDay - daysInMonth + 1;
         inMonth = false;
-        cellDate = new Date(currentMonth === 11 ? currentYear + 1 : currentYear,
-                            currentMonth === 11 ? 0 : currentMonth + 1, dayNum);
+        const m = currentMonth === 11 ? 0 : currentMonth + 1;
+        const y = currentMonth === 11 ? currentYear + 1 : currentYear;
+        cellDate = new Date(y, m, dayNum);
       } else {
         dayNum = i - firstDay + 1;
         inMonth = true;
         cellDate = new Date(currentYear, currentMonth, dayNum);
       }
 
-      const cell = document.createElement("div");
-      cell.className = "day-cell" + (inMonth ? "" : " other-month");
-
       const isToday = inMonth &&
         dayNum === today.getDate() &&
         currentMonth === today.getMonth() &&
         currentYear  === today.getFullYear();
+
+      const cell = document.createElement("div");
+      cell.className = "day-cell" + (inMonth ? "" : " other-month");
 
       const num = document.createElement("span");
       num.className = "day-num" + (isToday ? " today" : "");
       num.textContent = dayNum;
       cell.appendChild(num);
 
-      // Create MAX_ROWS event slots
-      for (let row = 0; row < MAX_ROWS; row++) {
+      // Event row slots
+      for (let r = 0; r < MAX_ROWS; r++) {
         const slot = document.createElement("div");
         slot.className = "event-slot";
-        slot.dataset.row = row;
+        slot.dataset.row = r;
         cell.appendChild(slot);
       }
 
       grid.appendChild(cell);
-      cells.push({ el: cell, dayNum, inMonth, cellDate });
+      cells.push({ el: cell, dayNum, inMonth, cellDate: startOfDay(cellDate), gridIndex: i });
     }
 
-    // Sort events: longest span first, then by start time
+    // Sort events: longest first so they claim rows before shorter ones
     const sorted = [...allEvents].sort((a, b) => {
-      const aSpan = b.end - b.start;
-      const bSpan = a.end - a.start;
-      return aSpan - bSpan || a.start - b.start;
+      const aLen = b.end - b.start;
+      const bLen = a.end - a.start;
+      return aLen - bLen || a.start - b.start;
     });
 
-    // Track used rows per cell [MAX_ROWS booleans]
-    const usedRows = Array.from({length: totalCells}, () => Array(MAX_ROWS).fill(false));
-    const overflowCount = Array(totalCells).fill(0);
+    // For each week row, track which event rows are occupied per cell
+    // usedRows[weekRow][cellCol][eventRow] = true/false
+    const usedRows   = Array.from({length: numWeeks}, () =>
+      Array.from({length: 7}, () => Array(MAX_ROWS).fill(false))
+    );
+    const overflow   = Array.from({length: numWeeks}, () => Array(7).fill(0));
 
     sorted.forEach(ev => {
-      const evStart = new Date(ev.start); evStart.setHours(0,0,0,0);
-      const evEnd   = new Date(ev.end);   evEnd.setHours(0,0,0,0);
+      const evStart = startOfDay(ev.start);
+      const evEnd   = startOfDay(ev.end);
 
-      // Find which cell indices this event occupies
-      const cellIndices = [];
-      cells.forEach((c, idx) => {
-        const cd = new Date(c.cellDate); cd.setHours(0,0,0,0);
-        if (cd >= evStart && cd <= evEnd) cellIndices.push(idx);
-      });
+      // For each week, find which columns this event occupies
+      for (let week = 0; week < numWeeks; week++) {
+        const weekCells = cells.slice(week * 7, week * 7 + 7);
+        const cols = [];
+        weekCells.forEach((c, col) => {
+          if (c.cellDate >= evStart && c.cellDate <= evEnd) cols.push(col);
+        });
+        if (cols.length === 0) continue;
 
-      if (cellIndices.length === 0) return;
-
-      // Find lowest free row across all spanned cells
-      let chosenRow = -1;
-      for (let row = 0; row < MAX_ROWS; row++) {
-        if (cellIndices.every(idx => !usedRows[idx][row])) {
-          chosenRow = row;
-          break;
+        // Find a free row in all occupied cols for this week
+        let chosenRow = -1;
+        for (let r = 0; r < MAX_ROWS; r++) {
+          if (cols.every(col => !usedRows[week][col][r])) {
+            chosenRow = r;
+            break;
+          }
         }
-      }
 
-      if (chosenRow === -1) {
-        cellIndices.forEach(idx => overflowCount[idx]++);
-        return;
-      }
-
-      cellIndices.forEach(idx => usedRows[idx][chosenRow] = true);
-
-      // Group consecutive indices within same week row
-      const weekGroups = [];
-      let group = [cellIndices[0]];
-      for (let i = 1; i < cellIndices.length; i++) {
-        const same = cellIndices[i] === cellIndices[i-1] + 1 &&
-          Math.floor(cellIndices[i] / 7) === Math.floor(cellIndices[i-1] / 7);
-        if (same) {
-          group.push(cellIndices[i]);
-        } else {
-          weekGroups.push(group);
-          group = [cellIndices[i]];
+        if (chosenRow === -1) {
+          cols.forEach(col => overflow[week][col]++);
+          continue;
         }
-      }
-      weekGroups.push(group);
 
-      weekGroups.forEach(grp => {
-        const firstIdx = grp[0];
-        const isMulti  = grp.length > 1;
-        const slot = cells[firstIdx].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
-        if (!slot) return;
+        // Mark row used
+        cols.forEach(col => usedRows[week][col][chosenRow] = true);
 
-        const pill = document.createElement("div");
-        pill.className = "event-pill" + (isMulti ? " multi-day" : "");
-        pill.style.background = ev.bgColor;
-        pill.style.color = ev.textColor;
+        // Render pill in the first col of this week segment
+        const firstCol = cols[0];
+        const span     = cols.length;
+        const firstCell = weekCells[firstCol];
+        const slot = firstCell.el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
+        if (!slot) continue;
 
+        // Build label
         let label = ev.title;
         if (!ev.allDay) {
-          const h = ev.start.getHours();
-          const m = ev.start.getMinutes();
+          const h    = ev.start.getHours();
+          const m    = ev.start.getMinutes();
           const ampm = h >= 12 ? "pm" : "am";
           const h12  = h % 12 || 12;
           const mStr = m > 0 ? `:${String(m).padStart(2,"0")}` : "";
           label = `${h12}${mStr}${ampm} ${ev.title}`;
         }
 
+        const pill = document.createElement("div");
+        pill.className = "event-pill" + (span > 1 ? " multi-day" : "");
+        pill.style.cssText = `
+          background: ${ev.bgColor};
+          color: ${ev.textColor};
+          --span: ${span};
+        `;
         pill.textContent = label;
         pill.title = label;
         slot.appendChild(pill);
 
-        // Continuation spacers for multi-day spans
-        grp.slice(1).forEach(idx => {
-          const contSlot = cells[idx].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
+        // Put invisible spacers in the continuation cells so layout is reserved
+        cols.slice(1).forEach(col => {
+          const contSlot = weekCells[col].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
           if (contSlot) {
             const spacer = document.createElement("div");
             spacer.className = "event-spacer";
             contSlot.appendChild(spacer);
           }
         });
-      });
-    });
-
-    // Render overflow counts
-    overflowCount.forEach((count, idx) => {
-      if (count > 0) {
-        const more = document.createElement("div");
-        more.className = "event-more";
-        more.textContent = `+${count} more`;
-        cells[idx].el.appendChild(more);
       }
     });
+
+    // Render overflow "+N more" badges
+    for (let week = 0; week < numWeeks; week++) {
+      for (let col = 0; col < 7; col++) {
+        const count = overflow[week][col];
+        if (count > 0) {
+          const more = document.createElement("div");
+          more.className = "event-more";
+          more.textContent = `+${count} more`;
+          cells[week * 7 + col].el.appendChild(more);
+        }
+      }
+    }
   }
 
   // ── Navigation ─────────────────────────────────────────────
