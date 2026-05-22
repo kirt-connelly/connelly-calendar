@@ -1,7 +1,6 @@
 // ============================================================
-//  CONNELLY FAMILY CALENDAR — MAIN APP
+//  CONNELLY FAMILY CALENDAR
 // ============================================================
-
 (function () {
   "use strict";
 
@@ -11,23 +10,18 @@
   let currentMonth = new Date().getMonth();
   let allEvents    = [];
 
-  const MONTH_NAMES = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ];
+  const MONTH_NAMES = ["January","February","March","April","May","June",
+    "July","August","September","October","November","December"];
   const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
   // ── Password ───────────────────────────────────────────────
-  async function sha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  async function sha256(msg) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
   }
 
   async function checkPassword() {
-    const input = document.getElementById("pw-input").value.trim();
-    const hash  = await sha256(input);
+    const hash = await sha256(document.getElementById("pw-input").value.trim());
     if (hash === CONFIG.passwordHash) {
       sessionStorage.setItem("calAuth", hash);
       showCalendar();
@@ -42,269 +36,223 @@
     return sessionStorage.getItem("calAuth") === CONFIG.passwordHash;
   }
 
-  // ── Google Calendar API ────────────────────────────────────
-  async function fetchCalendarEvents(cal, year, month) {
-    const timeMin = new Date(year, month, 1).toISOString();
-    const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-    const calId = encodeURIComponent(cal.id);
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`
+  // ── API ────────────────────────────────────────────────────
+  async function fetchCal(cal, year, month) {
+    const tMin = new Date(year, month, 1).toISOString();
+    const tMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    const url  = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`
       + `?key=AIzaSyANgqTgULK9wuIqU2IggqbothFP3Yz-UZc`
-      + `&timeMin=${encodeURIComponent(timeMin)}`
-      + `&timeMax=${encodeURIComponent(timeMax)}`
+      + `&timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}`
       + `&singleEvents=true&orderBy=startTime&maxResults=500&showDeleted=false`;
-
     try {
-      const resp = await fetch(url);
-      if (!resp.ok) return [];
-      const data = await resp.json();
-      return (data.items || []).filter(item => {
-        if (item.status === "cancelled") return false;
-        if (item.attendees) {
-          const self = item.attendees.find(a => a.self);
-          if (self && self.responseStatus === "declined") return false;
+      const data = await (await fetch(url)).json();
+      return (data.items || []).filter(ev => {
+        if (ev.status === "cancelled") return false;
+        if (ev.attendees) {
+          const me = ev.attendees.find(a => a.self);
+          if (me && me.responseStatus === "declined") return false;
         }
         return true;
-      }).map(item => {
-        const isAllDay = !!item.start.date && !item.start.dateTime;
-        const start = isAllDay
-          ? new Date(item.start.date + "T00:00:00")
-          : new Date(item.start.dateTime);
-        let end = isAllDay
-          ? new Date(item.end.date + "T00:00:00")
-          : new Date(item.end.dateTime);
-        if (isAllDay) end.setDate(end.getDate() - 1);
-        return {
-          title:     item.summary || "(private)",
-          start, end,
-          allDay:    isAllDay,
-          bgColor:   cal.bgColor,
-          textColor: cal.textColor
-        };
+      }).map(ev => {
+        const allDay = !!ev.start.date && !ev.start.dateTime;
+        const start  = allDay ? new Date(ev.start.date + "T00:00:00") : new Date(ev.start.dateTime);
+        let   end    = allDay ? new Date(ev.end.date   + "T00:00:00") : new Date(ev.end.dateTime);
+        if (allDay) end.setDate(end.getDate() - 1); // Google end is exclusive
+        return { title: ev.summary || "(private)", start, end, allDay, bgColor: cal.bgColor, textColor: cal.textColor };
       });
-    } catch (e) {
-      console.warn("Could not load calendar:", cal.name, e);
-      return [];
-    }
+    } catch(e) { console.warn("Calendar load failed:", cal.name, e); return []; }
   }
 
   async function loadAllEvents() {
-    const spinner = document.getElementById("loading-spinner");
-    if (spinner) spinner.style.display = "flex";
-    const results = await Promise.all(
-      CONFIG.calendars.map(cal => fetchCalendarEvents(cal, currentYear, currentMonth))
-    );
-    allEvents = results.flat();
-    if (spinner) spinner.style.display = "none";
+    document.getElementById("loading-spinner").style.display = "flex";
+    allEvents = (await Promise.all(CONFIG.calendars.map(c => fetchCal(c, currentYear, currentMonth)))).flat();
+    document.getElementById("loading-spinner").style.display = "none";
     renderGrid();
   }
 
   // ── Helpers ────────────────────────────────────────────────
-  function startOfDay(d) {
-    const c = new Date(d);
-    c.setHours(0, 0, 0, 0);
-    return c;
+  function d0(d) { const c = new Date(d); c.setHours(0,0,0,0); return c; }
+
+  function fmtTime(d) {
+    const h = d.getHours(), m = d.getMinutes();
+    return `${h % 12 || 12}${m ? `:${String(m).padStart(2,"0")}` : ""}${h >= 12 ? "pm" : "am"}`;
   }
 
-  function addDays(d, n) {
-    const c = new Date(d);
-    c.setDate(c.getDate() + n);
-    return c;
-  }
-
-  // ── Calendar Rendering ─────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────
   function renderGrid() {
-    document.getElementById("month-label").textContent =
-      `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+    document.getElementById("month-label").textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
 
     const grid = document.getElementById("cal-grid");
     grid.innerHTML = "";
 
-    // Day of week headers
+    // Day-of-week header
+    const dowRow = document.createElement("div");
+    dowRow.className = "dow-row";
     DAY_NAMES.forEach(d => {
-      const h = document.createElement("div");
-      h.className = "day-header";
-      h.textContent = d;
-      grid.appendChild(h);
+      const c = document.createElement("div");
+      c.className = "dow-cell";
+      c.textContent = d;
+      dowRow.appendChild(c);
     });
+    grid.appendChild(dowRow);
 
-    const today       = new Date();
-    const firstDay    = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const prevDays    = new Date(currentYear, currentMonth, 0).getDate();
-    const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
-    const numWeeks    = totalCells / 7;
+    const today      = new Date();
+    const firstDay   = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMon  = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const prevDays   = new Date(currentYear, currentMonth, 0).getDate();
+    const totalCells = Math.ceil((firstDay + daysInMon) / 7) * 7;
+    const numWeeks   = totalCells / 7;
 
-    // Build cell data with correct dates
-    const cells = [];
+    // Build date array for all cells
+    const cellDates = [];
     for (let i = 0; i < totalCells; i++) {
-      let dayNum, inMonth, cellDate;
+      let date, inMonth;
       if (i < firstDay) {
-        dayNum = prevDays - firstDay + 1 + i;
+        date = new Date(currentMonth === 0 ? currentYear-1 : currentYear,
+                        currentMonth === 0 ? 11 : currentMonth-1,
+                        prevDays - firstDay + 1 + i);
         inMonth = false;
-        const m = currentMonth === 0 ? 11 : currentMonth - 1;
-        const y = currentMonth === 0 ? currentYear - 1 : currentYear;
-        cellDate = new Date(y, m, dayNum);
-      } else if (i >= firstDay + daysInMonth) {
-        dayNum = i - firstDay - daysInMonth + 1;
+      } else if (i >= firstDay + daysInMon) {
+        date = new Date(currentMonth === 11 ? currentYear+1 : currentYear,
+                        currentMonth === 11 ? 0 : currentMonth+1,
+                        i - firstDay - daysInMon + 1);
         inMonth = false;
-        const m = currentMonth === 11 ? 0 : currentMonth + 1;
-        const y = currentMonth === 11 ? currentYear + 1 : currentYear;
-        cellDate = new Date(y, m, dayNum);
       } else {
-        dayNum = i - firstDay + 1;
+        date = new Date(currentYear, currentMonth, i - firstDay + 1);
         inMonth = true;
-        cellDate = new Date(currentYear, currentMonth, dayNum);
       }
-
-      const isToday = inMonth &&
-        dayNum === today.getDate() &&
-        currentMonth === today.getMonth() &&
-        currentYear  === today.getFullYear();
-
-      const cell = document.createElement("div");
-      cell.className = "day-cell" + (inMonth ? "" : " other-month");
-
-      const num = document.createElement("span");
-      num.className = "day-num" + (isToday ? " today" : "");
-      num.textContent = dayNum;
-      cell.appendChild(num);
-
-      // Event row slots
-      for (let r = 0; r < MAX_ROWS; r++) {
-        const slot = document.createElement("div");
-        slot.className = "event-slot";
-        slot.dataset.row = r;
-        cell.appendChild(slot);
-      }
-
-      grid.appendChild(cell);
-      cells.push({ el: cell, dayNum, inMonth, cellDate: startOfDay(cellDate), gridIndex: i });
+      cellDates.push({ date: d0(date), inMonth });
     }
 
-    // Sort events: longest first so they claim rows before shorter ones
+    // Sort events: longest span first, then by start
     const sorted = [...allEvents].sort((a, b) => {
-      const aLen = b.end - b.start;
-      const bLen = a.end - a.start;
-      return aLen - bLen || a.start - b.start;
+      const aSpan = d0(b.end) - d0(b.start);
+      const bSpan = d0(a.end) - d0(a.start);
+      return aSpan - bSpan || a.start - b.start;
     });
 
-    // For each week row, track which event rows are occupied per cell
-    // usedRows[weekRow][cellCol][eventRow] = true/false
-    const usedRows   = Array.from({length: numWeeks}, () =>
-      Array.from({length: 7}, () => Array(MAX_ROWS).fill(false))
-    );
-    const overflow   = Array.from({length: numWeeks}, () => Array(7).fill(0));
+    // For each week: assign events to rows
+    const weeks = [];
+    for (let w = 0; w < numWeeks; w++) {
+      const weekDates = cellDates.slice(w * 7, w * 7 + 7);
+      // rows: array of 7-element arrays (null = empty, event obj = placed)
+      const rows = Array.from({length: MAX_ROWS}, () => Array(7).fill(null));
+      const overflow = Array(7).fill(0);
 
-    sorted.forEach(ev => {
-      const evStart = startOfDay(ev.start);
-      const evEnd   = startOfDay(ev.end);
+      sorted.forEach(ev => {
+        const evStart = d0(ev.start);
+        const evEnd   = d0(ev.end);
 
-      // For each week, find which columns this event occupies
-      for (let week = 0; week < numWeeks; week++) {
-        const weekCells = cells.slice(week * 7, week * 7 + 7);
-        const cols = [];
-        weekCells.forEach((c, col) => {
-          if (c.cellDate >= evStart && c.cellDate <= evEnd) cols.push(col);
-        });
-        if (cols.length === 0) continue;
+        // Which columns does this event occupy this week?
+        const cols = weekDates.reduce((acc, {date}, col) => {
+          if (date >= evStart && date <= evEnd) acc.push(col);
+          return acc;
+        }, []);
+        if (cols.length === 0) return;
 
-        // Find a free row in all occupied cols for this week
+        // Find first free row across all these cols
         let chosenRow = -1;
         for (let r = 0; r < MAX_ROWS; r++) {
-          if (cols.every(col => !usedRows[week][col][r])) {
-            chosenRow = r;
-            break;
-          }
+          if (cols.every(col => rows[r][col] === null)) { chosenRow = r; break; }
         }
 
         if (chosenRow === -1) {
-          cols.forEach(col => overflow[week][col]++);
-          continue;
+          cols.forEach(col => overflow[col]++);
+          return;
         }
 
-        // Mark row used
-        cols.forEach(col => usedRows[week][col][chosenRow] = true);
+        // Place event: mark start col with event, rest with "cont" marker
+        rows[chosenRow][cols[0]] = { ev, span: cols.length, isStart: true };
+        cols.slice(1).forEach(col => { rows[chosenRow][col] = { ev, span: 0, isStart: false }; });
+      });
 
-        // Render pill in the first col of this week segment
-        const firstCol = cols[0];
-        const span     = cols.length;
-        const firstCell = weekCells[firstCol];
-        const slot = firstCell.el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
-        if (!slot) continue;
-
-        // Build label
-        let label = ev.title;
-        if (!ev.allDay) {
-          const h    = ev.start.getHours();
-          const m    = ev.start.getMinutes();
-          const ampm = h >= 12 ? "pm" : "am";
-          const h12  = h % 12 || 12;
-          const mStr = m > 0 ? `:${String(m).padStart(2,"0")}` : "";
-          label = `${h12}${mStr}${ampm} ${ev.title}`;
-        }
-
-        const pill = document.createElement("div");
-        pill.className = "event-pill" + (span > 1 ? " multi-day" : "");
-        pill.style.cssText = `
-          background: ${ev.bgColor};
-          color: ${ev.textColor};
-          --span: ${span};
-        `;
-        pill.textContent = label;
-        pill.title = label;
-        slot.appendChild(pill);
-
-        // Put invisible spacers in the continuation cells so layout is reserved
-        cols.slice(1).forEach(col => {
-          const contSlot = weekCells[col].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
-          if (contSlot) {
-            const spacer = document.createElement("div");
-            spacer.className = "event-spacer";
-            contSlot.appendChild(spacer);
-          }
-        });
-      }
-    });
-
-    // Render overflow "+N more" badges
-    for (let week = 0; week < numWeeks; week++) {
-      for (let col = 0; col < 7; col++) {
-        const count = overflow[week][col];
-        if (count > 0) {
-          const more = document.createElement("div");
-          more.className = "event-more";
-          more.textContent = `+${count} more`;
-          cells[week * 7 + col].el.appendChild(more);
-        }
-      }
+      weeks.push({ weekDates, rows, overflow });
     }
+
+    // Render each week
+    weeks.forEach(({ weekDates, rows, overflow }) => {
+      const weekEl = document.createElement("div");
+      weekEl.className = "week-row";
+
+      // Date number cells
+      weekDates.forEach(({ date, inMonth }) => {
+        const cell = document.createElement("div");
+        cell.className = "day-num-cell" + (inMonth ? "" : " other-month");
+        const isToday = date.getTime() === d0(today).getTime();
+        const num = document.createElement("span");
+        num.className = "day-num" + (isToday ? " today" : "");
+        num.textContent = date.getDate();
+        cell.appendChild(num);
+        weekEl.appendChild(cell);
+      });
+
+      // Events area
+      const eventsArea = document.createElement("div");
+      eventsArea.className = "week-events";
+
+      // Render each event row
+      rows.forEach(row => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "event-row";
+
+        let col = 0;
+        while (col < 7) {
+          const cell = row[col];
+          if (cell && cell.isStart) {
+            const pill = document.createElement("div");
+            pill.className = "event-pill";
+            pill.style.gridColumn = `${col + 1} / span ${cell.span}`;
+            pill.style.background = cell.ev.bgColor;
+            pill.style.color      = cell.ev.textColor;
+            const label = cell.ev.allDay
+              ? cell.ev.title
+              : `${fmtTime(cell.ev.start)} ${cell.ev.title}`;
+            pill.textContent = label;
+            pill.title = label;
+            rowEl.appendChild(pill);
+            col += cell.span;
+          } else if (cell && !cell.isStart) {
+            col++; // continuation — skip, pill already spans
+          } else {
+            // Empty slot — add invisible spacer so grid col is occupied
+            const empty = document.createElement("div");
+            empty.style.gridColumn = `${col + 1}`;
+            rowEl.appendChild(empty);
+            col++;
+          }
+        }
+        eventsArea.appendChild(rowEl);
+      });
+
+      // Overflow row
+      const hasOverflow = overflow.some(n => n > 0);
+      if (hasOverflow) {
+        const ovRow = document.createElement("div");
+        ovRow.className = "overflow-row";
+        overflow.forEach((count, col) => {
+          const cell = document.createElement("div");
+          cell.className = "overflow-cell";
+          cell.style.gridColumn = `${col + 1}`;
+          if (count > 0) cell.textContent = `+${count} more`;
+          ovRow.appendChild(cell);
+        });
+        eventsArea.appendChild(ovRow);
+      }
+
+      weekEl.appendChild(eventsArea);
+      grid.appendChild(weekEl);
+    });
   }
 
-  // ── Navigation ─────────────────────────────────────────────
-  function prevMonth() {
-    currentMonth--;
-    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-    loadAllEvents();
-  }
-
-  function nextMonth() {
-    currentMonth++;
-    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    loadAllEvents();
-  }
-
-  function goToday() {
-    const now = new Date();
-    currentYear  = now.getFullYear();
-    currentMonth = now.getMonth();
-    loadAllEvents();
-  }
+  // ── Nav ────────────────────────────────────────────────────
+  function prevMonth() { if (--currentMonth < 0) { currentMonth = 11; currentYear--; } loadAllEvents(); }
+  function nextMonth() { if (++currentMonth > 11) { currentMonth = 0;  currentYear++; } loadAllEvents(); }
+  function goToday()   { currentYear = new Date().getFullYear(); currentMonth = new Date().getMonth(); loadAllEvents(); }
 
   // ── UI ─────────────────────────────────────────────────────
   function showCalendar() {
     document.getElementById("lock-screen").style.display = "none";
     document.getElementById("cal-wrapper").style.display = "block";
-
     const legend = document.getElementById("legend");
     legend.innerHTML = "";
     CONFIG.calendars.forEach(cal => {
@@ -313,18 +261,14 @@
       item.innerHTML = `<span class="legend-dot" style="background:${cal.color}"></span>${cal.name}`;
       legend.appendChild(item);
     });
-
     loadAllEvents();
   }
 
   function init() {
     document.getElementById("site-name").textContent = CONFIG.siteName;
     const sub = document.getElementById("site-sub");
-    if (CONFIG.siteSubtitle) {
-      sub.textContent = CONFIG.siteSubtitle;
-    } else {
-      sub.style.display = "none";
-    }
+    if (CONFIG.siteSubtitle) sub.textContent = CONFIG.siteSubtitle;
+    else sub.style.display = "none";
     document.getElementById("site-header").style.background = CONFIG.headerColor;
 
     document.getElementById("pw-btn").addEventListener("click", checkPassword);
@@ -332,7 +276,6 @@
       if (e.key === "Enter") checkPassword();
       document.getElementById("pw-error").style.display = "none";
     });
-
     document.getElementById("btn-prev").addEventListener("click", prevMonth);
     document.getElementById("btn-next").addEventListener("click", nextMonth);
     document.getElementById("btn-today").addEventListener("click", goToday);
@@ -341,5 +284,4 @@
   }
 
   document.addEventListener("DOMContentLoaded", init);
-
 })();
