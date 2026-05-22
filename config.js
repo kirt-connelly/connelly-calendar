@@ -49,6 +49,13 @@ const CONFIG = {
       textColor: "#633806",
       id: "jodie@connellyfamily.org"
     }
+    {
+      name: "Holidays",
+      color: "#e24b4a",
+      bgColor: "#f09595",
+      textColor: "#501313",
+      id: "en.usa#holiday@group.v.calendar.google.com"
+    }
   ],
 
   // ----------------------------------------------------------

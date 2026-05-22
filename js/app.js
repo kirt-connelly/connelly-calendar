@@ -209,6 +209,8 @@
               : `${fmtTime(cell.ev.start)} ${cell.ev.title}`;
             pill.textContent = label;
             pill.title = label;
+            // Grey out past events
+            if (d0(cell.ev.end) < d0(today)) pill.style.opacity = "0.4";
             rowEl.appendChild(pill);
             col += cell.span;
           } else if (cell && !cell.isStart) {
