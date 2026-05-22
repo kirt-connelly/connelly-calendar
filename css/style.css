@@ -188,7 +188,7 @@ body {
 }
 
 .day-cell {
-  min-height: 100px;
+  min-height: 115px;
   padding: 4px 0 4px;
   border-right: 0.5px solid #e8e8e4;
   border-bottom: 0.5px solid #e8e8e4;

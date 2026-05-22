@@ -55,7 +55,7 @@ const CONFIG = {
   //  SITE BRANDING  (optional tweaks)
   // ----------------------------------------------------------
   siteName: "Connelly Family Calendar",
-  siteSubtitle: "connellyfamily.org",
+  siteSubtitle: "",
   headerColor: "#1a3a2a"   // dark green header background
 
 };

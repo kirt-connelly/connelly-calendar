@@ -5,6 +5,8 @@
 (function () {
   "use strict";
 
+  const MAX_ROWS = 4; // visible event rows per cell before "+N more"
+
   let currentYear  = new Date().getFullYear();
   let currentMonth = new Date().getMonth();
   let allEvents    = [];
@@ -42,7 +44,6 @@
 
   // ── Google Calendar API ────────────────────────────────────
   async function fetchCalendarEvents(cal, year, month) {
-    // Fetch a wider window so multi-day events starting before month-start still appear
     const timeMin = new Date(year, month, 1).toISOString();
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
@@ -66,20 +67,16 @@
         return true;
       }).map(item => {
         const isAllDay = !!item.start.date && !item.start.dateTime;
-        // For all-day events, Google uses exclusive end date (day after last day)
         const start = isAllDay
           ? new Date(item.start.date + "T00:00:00")
           : new Date(item.start.dateTime);
         let end = isAllDay
           ? new Date(item.end.date + "T00:00:00")
           : new Date(item.end.dateTime);
-        // Make all-day end inclusive
         if (isAllDay) end.setDate(end.getDate() - 1);
-
         return {
           title:     item.summary || "(private)",
-          start,
-          end,
+          start, end,
           allDay:    isAllDay,
           calName:   cal.name,
           bgColor:   cal.bgColor,
@@ -95,40 +92,12 @@
   async function loadAllEvents() {
     const spinner = document.getElementById("loading-spinner");
     if (spinner) spinner.style.display = "flex";
-    const promises = CONFIG.calendars.map(cal =>
-      fetchCalendarEvents(cal, currentYear, currentMonth)
+    const results = await Promise.all(
+      CONFIG.calendars.map(cal => fetchCalendarEvents(cal, currentYear, currentMonth))
     );
-    const results = await Promise.all(promises);
     allEvents = results.flat();
     if (spinner) spinner.style.display = "none";
     renderGrid();
-  }
-
-  // ── Helpers ────────────────────────────────────────────────
-  function dateKey(y, m, d) {
-    return `${y}-${m}-${d}`;
-  }
-
-  function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() &&
-           a.getMonth()    === b.getMonth()    &&
-           a.getDate()     === b.getDate();
-  }
-
-  // Returns all days (as Date objects) an event spans within the current month view
-  function eventDaysInMonth(ev, year, month) {
-    const days = [];
-    const monthStart = new Date(year, month, 1);
-    const monthEnd   = new Date(year, month + 1, 0);
-    const cur = new Date(Math.max(ev.start, monthStart));
-    const stop = new Date(Math.min(ev.end, monthEnd));
-    cur.setHours(0,0,0,0);
-    stop.setHours(0,0,0,0);
-    while (cur <= stop) {
-      days.push(new Date(cur));
-      cur.setDate(cur.getDate() + 1);
-    }
-    return days;
   }
 
   // ── Calendar Rendering ─────────────────────────────────────
@@ -139,7 +108,6 @@
     const grid = document.getElementById("cal-grid");
     grid.innerHTML = "";
 
-    // Day headers
     DAY_NAMES.forEach(d => {
       const h = document.createElement("div");
       h.className = "day-header";
@@ -153,24 +121,28 @@
     const prevDays    = new Date(currentYear, currentMonth, 0).getDate();
     const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
-    // Build cell elements
+    // Build cells and assign actual dates
     const cells = [];
     for (let i = 0; i < totalCells; i++) {
-      const cell = document.createElement("div");
-      let dayNum, inMonth;
+      let dayNum, inMonth, cellDate;
       if (i < firstDay) {
         dayNum = prevDays - firstDay + 1 + i;
         inMonth = false;
+        cellDate = new Date(currentMonth === 0 ? currentYear - 1 : currentYear,
+                            currentMonth === 0 ? 11 : currentMonth - 1, dayNum);
       } else if (i >= firstDay + daysInMonth) {
         dayNum = i - firstDay - daysInMonth + 1;
         inMonth = false;
+        cellDate = new Date(currentMonth === 11 ? currentYear + 1 : currentYear,
+                            currentMonth === 11 ? 0 : currentMonth + 1, dayNum);
       } else {
         dayNum = i - firstDay + 1;
         inMonth = true;
+        cellDate = new Date(currentYear, currentMonth, dayNum);
       }
+
+      const cell = document.createElement("div");
       cell.className = "day-cell" + (inMonth ? "" : " other-month");
-      cell.dataset.day = dayNum;
-      cell.dataset.inMonth = inMonth;
 
       const isToday = inMonth &&
         dayNum === today.getDate() &&
@@ -182,8 +154,8 @@
       num.textContent = dayNum;
       cell.appendChild(num);
 
-      // Placeholder rows for events (up to 3 rows per cell)
-      for (let row = 0; row < 3; row++) {
+      // Create MAX_ROWS event slots
+      for (let row = 0; row < MAX_ROWS; row++) {
         const slot = document.createElement("div");
         slot.className = "event-slot";
         slot.dataset.row = row;
@@ -191,41 +163,36 @@
       }
 
       grid.appendChild(cell);
-      cells.push({ el: cell, dayNum, inMonth });
+      cells.push({ el: cell, dayNum, inMonth, cellDate });
     }
 
-    // ── Place events ───────────────────────────────────────
-    // Sort: all-day/multi-day first (longest first), then timed
+    // Sort events: longest span first, then by start time
     const sorted = [...allEvents].sort((a, b) => {
-      const aSpan = (a.end - a.start);
-      const bSpan = (b.end - b.start);
-      return bSpan - aSpan;
+      const aSpan = b.end - b.start;
+      const bSpan = a.end - a.start;
+      return aSpan - bSpan || a.start - b.start;
     });
 
-    // Track which row is used per cell index
-    const usedRows = Array.from({length: totalCells}, () => [false, false, false]);
+    // Track used rows per cell [MAX_ROWS booleans]
+    const usedRows = Array.from({length: totalCells}, () => Array(MAX_ROWS).fill(false));
     const overflowCount = Array(totalCells).fill(0);
 
     sorted.forEach(ev => {
-      // Find first and last cell index for this event in the grid
       const evStart = new Date(ev.start); evStart.setHours(0,0,0,0);
       const evEnd   = new Date(ev.end);   evEnd.setHours(0,0,0,0);
 
-      // Find cell indices this event spans
+      // Find which cell indices this event occupies
       const cellIndices = [];
       cells.forEach((c, idx) => {
-        if (!c.inMonth && ev.allDay) return; // skip filler for all-day
-        const cellDate = cellDateOf(c, currentYear, currentMonth, firstDay, prevDays, daysInMonth);
-        if (!cellDate) return;
-        const cd = new Date(cellDate); cd.setHours(0,0,0,0);
+        const cd = new Date(c.cellDate); cd.setHours(0,0,0,0);
         if (cd >= evStart && cd <= evEnd) cellIndices.push(idx);
       });
 
       if (cellIndices.length === 0) return;
 
-      // Find a free row across all spanned cells
+      // Find lowest free row across all spanned cells
       let chosenRow = -1;
-      for (let row = 0; row < 3; row++) {
+      for (let row = 0; row < MAX_ROWS; row++) {
         if (cellIndices.every(idx => !usedRows[idx][row])) {
           chosenRow = row;
           break;
@@ -233,19 +200,19 @@
       }
 
       if (chosenRow === -1) {
-        // No room — increment overflow for each cell
         cellIndices.forEach(idx => overflowCount[idx]++);
         return;
       }
 
-      // Mark row used
       cellIndices.forEach(idx => usedRows[idx][chosenRow] = true);
 
-      // Render: group by week row
+      // Group consecutive indices within same week row
       const weekGroups = [];
       let group = [cellIndices[0]];
       for (let i = 1; i < cellIndices.length; i++) {
-        if (cellIndices[i] === cellIndices[i-1] + 1 && Math.floor(cellIndices[i] / 7) === Math.floor(cellIndices[i-1] / 7)) {
+        const same = cellIndices[i] === cellIndices[i-1] + 1 &&
+          Math.floor(cellIndices[i] / 7) === Math.floor(cellIndices[i-1] / 7);
+        if (same) {
           group.push(cellIndices[i]);
         } else {
           weekGroups.push(group);
@@ -256,23 +223,21 @@
 
       weekGroups.forEach(grp => {
         const firstIdx = grp[0];
-        const span = grp.length;
+        const isMulti  = grp.length > 1;
         const slot = cells[firstIdx].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
         if (!slot) return;
 
         const pill = document.createElement("div");
-        pill.className = "event-pill" + (span > 1 ? " multi-day" : "");
+        pill.className = "event-pill" + (isMulti ? " multi-day" : "");
         pill.style.background = ev.bgColor;
         pill.style.color = ev.textColor;
-        pill.style.gridColumn = `span ${span}`;
 
-        // For timed events, prefix with time
         let label = ev.title;
         if (!ev.allDay) {
           const h = ev.start.getHours();
           const m = ev.start.getMinutes();
           const ampm = h >= 12 ? "pm" : "am";
-          const h12 = h % 12 || 12;
+          const h12  = h % 12 || 12;
           const mStr = m > 0 ? `:${String(m).padStart(2,"0")}` : "";
           label = `${h12}${mStr}${ampm} ${ev.title}`;
         }
@@ -281,7 +246,7 @@
         pill.title = label;
         slot.appendChild(pill);
 
-        // Fill continuation cells with spacer
+        // Continuation spacers for multi-day spans
         grp.slice(1).forEach(idx => {
           const contSlot = cells[idx].el.querySelector(`.event-slot[data-row="${chosenRow}"]`);
           if (contSlot) {
@@ -302,20 +267,6 @@
         cells[idx].el.appendChild(more);
       }
     });
-  }
-
-  function cellDateOf(c, year, month, firstDay, prevDays, daysInMonth) {
-    // Reconstruct the actual date for a cell
-    const el = c.el;
-    const allCells = Array.from(el.parentNode.children).filter(e => e.classList.contains('day-cell'));
-    const idx = allCells.indexOf(el);
-    if (idx < firstDay) {
-      return new Date(idx < firstDay ? year : year, idx < firstDay ? month - 1 : month, c.dayNum);
-    } else if (c.dayNum > daysInMonth && idx >= firstDay + daysInMonth) {
-      return new Date(month === 11 ? year + 1 : year, (month + 1) % 12, c.dayNum);
-    } else {
-      return new Date(year, month, c.dayNum);
-    }
   }
 
   // ── Navigation ─────────────────────────────────────────────
@@ -341,8 +292,7 @@
   // ── UI ─────────────────────────────────────────────────────
   function showCalendar() {
     document.getElementById("lock-screen").style.display = "none";
-    const calWrap = document.getElementById("cal-wrapper");
-    calWrap.style.display = "block";
+    document.getElementById("cal-wrapper").style.display = "block";
 
     const legend = document.getElementById("legend");
     legend.innerHTML = "";
@@ -357,8 +307,13 @@
   }
 
   function init() {
-    document.getElementById("site-name").textContent   = CONFIG.siteName;
-    document.getElementById("site-sub").textContent    = CONFIG.siteSubtitle;
+    document.getElementById("site-name").textContent = CONFIG.siteName;
+    const sub = document.getElementById("site-sub");
+    if (CONFIG.siteSubtitle) {
+      sub.textContent = CONFIG.siteSubtitle;
+    } else {
+      sub.style.display = "none";
+    }
     document.getElementById("site-header").style.background = CONFIG.headerColor;
 
     document.getElementById("pw-btn").addEventListener("click", checkPassword);
