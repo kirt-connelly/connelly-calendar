@@ -1,3 +1,7 @@
+/* ============================================================
+   CONNELLY FAMILY CALENDAR — STYLES v2.1
+   ============================================================ */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -60,6 +64,7 @@ body {
 .cal-nav {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; border-bottom: 0.5px solid #e8e8e4;
+  flex-wrap: wrap; gap: 8px;
 }
 #month-label { font-size: 17px; font-weight: 600; }
 .nav-btns { display: flex; gap: 8px; }
@@ -69,6 +74,19 @@ body {
 }
 .nav-btn:hover { background: #f4f4f0; }
 #btn-today { font-weight: 500; color: #1a3a2a; border-color: #1a3a2a; }
+
+.add-event-btn {
+  padding: 7px 16px;
+  background: #1a3a2a;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.add-event-btn:hover { opacity: 0.85; }
 
 /* ── Spinner ─────────────────────────────────────────────── */
 #loading-spinner {
@@ -85,12 +103,9 @@ body {
 /* ── Calendar grid ───────────────────────────────────────── */
 #cal-grid { width: 100%; }
 
-/* Day-of-week header row */
 .dow-row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-bottom: 0.5px solid #e8e8e4;
-  background: #fafaf8;
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border-bottom: 0.5px solid #e8e8e4; background: #fafaf8;
 }
 .dow-cell {
   text-align: center; font-size: 11px; font-weight: 600;
@@ -98,17 +113,15 @@ body {
   text-transform: uppercase; letter-spacing: 0.6px;
 }
 
-/* Each week is its own grid */
 .week-row {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: 28px auto; /* date number row + events area */
+  grid-template-rows: 28px auto;
   border-bottom: 0.5px solid #e8e8e4;
   position: relative;
   min-height: 100px;
 }
 
-/* Day number cells — top row */
 .day-num-cell {
   grid-row: 1;
   border-right: 0.5px solid #e8e8e4;
@@ -124,66 +137,175 @@ body {
 }
 .day-num.today { background: #1a3a2a; color: white; font-weight: 600; }
 
-/* Events area spans all 7 columns, row 2 */
 .week-events {
-  grid-row: 2;
-  grid-column: 1 / 8;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  position: relative;
-  padding-bottom: 4px;
+  grid-row: 2; grid-column: 1 / 8;
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  position: relative; padding-bottom: 4px;
 }
 
-/* Vertical separators in events area */
 .week-events::before {
   content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 0; right: 0;
+  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
   background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent calc(100% / 7 - 0.5px),
-    #e8e8e4 calc(100% / 7 - 0.5px),
-    #e8e8e4 calc(100% / 7)
+    90deg, transparent, transparent calc(100% / 7 - 0.5px),
+    #e8e8e4 calc(100% / 7 - 0.5px), #e8e8e4 calc(100% / 7)
   );
-  pointer-events: none;
-  z-index: 0;
+  pointer-events: none; z-index: 0;
 }
 
-/* Each event row is a full-width grid layer */
 .event-row {
-  grid-column: 1 / 8;
-  display: grid;
+  grid-column: 1 / 8; display: grid;
   grid-template-columns: repeat(7, 1fr);
-  height: 20px;
-  margin: 1px 0;
-  position: relative;
-  z-index: 1;
+  height: 20px; margin: 1px 0;
+  position: relative; z-index: 1;
 }
 
-/* Event pill — spans N columns via grid-column */
 .event-pill {
-  height: 18px;
-  margin: 0 2px 0 2px;
-  padding: 0 5px;
-  border-radius: 3px;
+  height: 18px; margin: 0 2px;
+  padding: 0 5px; border-radius: 3px;
   font-size: 11px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  line-height: 18px; cursor: default;
-  position: relative; z-index: 2;
+  line-height: 18px; cursor: default; position: relative; z-index: 2;
 }
 
-/* Overflow badge */
 .overflow-row {
-  grid-column: 1 / 8;
-  display: grid;
+  grid-column: 1 / 8; display: grid;
   grid-template-columns: repeat(7, 1fr);
   position: relative; z-index: 1;
 }
-.overflow-cell {
-  font-size: 10px; color: #888; font-weight: 500;
-  padding: 1px 6px;
+.overflow-cell { font-size: 10px; color: #888; font-weight: 500; padding: 1px 6px; }
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 16px;
 }
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  width: 100%; max-width: 440px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  background: #1a3a2a;
+  padding: 18px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 16px; font-weight: 600; color: white;
+}
+
+.modal-close {
+  background: rgba(255,255,255,0.15);
+  border: none; color: white;
+  width: 28px; height: 28px;
+  border-radius: 50%; font-size: 14px;
+  cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
+
+.modal-body {
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.form-field {
+  display: flex; flex-direction: column; gap: 5px;
+}
+
+.form-field label {
+  font-size: 11px; font-weight: 600;
+  color: #666; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.form-field input[type="text"],
+.form-field input[type="date"],
+.form-field input[type="time"] {
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fafafa;
+  outline: none;
+  font-family: inherit;
+  color: #1a1a18;
+  width: 100%;
+}
+
+.form-field input:focus { border-color: #1a3a2a; background: white; }
+
+/* Calendar pills */
+.cal-pills { display: flex; gap: 8px; }
+.cal-pill {
+  flex: 1; padding: 8px 4px;
+  border-radius: 8px; border: 1.5px solid #e0e0dc;
+  background: white; font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: center; color: #555;
+}
+.cal-pill.family.active { background: #c0dd97; border-color: #639922; color: #27500a; }
+.cal-pill.disabled {
+  opacity: 0.3; cursor: not-allowed;
+  background: #f0f0f0 !important;
+  border-color: #ddd !important;
+  color: #999 !important;
+  pointer-events: none;
+}
+
+/* Toggle */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: #fafaf8;
+  border-radius: 8px; border: 1px solid #e8e8e4;
+}
+.toggle-label { font-size: 14px; color: #1a1a18; font-weight: 500; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: #ddd; border-radius: 22px; cursor: pointer; transition: background 0.2s;
+}
+.toggle input:checked + .toggle-track { background: #1a3a2a; }
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; left: 3px; top: 3px;
+  background: white; border-radius: 50%; transition: transform 0.2s;
+}
+.toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+
+/* Date & time rows */
+.date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.time-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+.time-sep { font-size: 13px; color: #888; text-align: center; padding-bottom: 10px; }
+.time-input-wrap { display: flex; align-items: center; gap: 6px; }
+.time-input-wrap input { flex: 1; }
+.tz-label { font-size: 11px; color: #888; font-weight: 600; white-space: nowrap; }
+
+.form-error { font-size: 13px; color: #c0392b; }
+.form-success { font-size: 13px; color: #27500a; font-weight: 500; }
+
+.modal-footer {
+  display: flex; gap: 10px;
+  padding: 0 24px 24px;
+}
+.btn-cancel {
+  flex: 1; padding: 11px;
+  border: 1px solid #ddd; border-radius: 8px;
+  background: white; font-size: 14px; font-weight: 500;
+  color: #555; cursor: pointer; font-family: inherit;
+}
+.btn-save {
+  flex: 2; padding: 11px;
+  border: none; border-radius: 8px;
+  background: #1a3a2a; color: white;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: opacity 0.15s;
+}
+.btn-save:hover { opacity: 0.85; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Footer ──────────────────────────────────────────────── */
 .site-footer { margin-top: 16px; font-size: 12px; color: #aaa; text-align: center; }

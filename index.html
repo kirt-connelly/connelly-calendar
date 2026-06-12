@@ -37,13 +37,92 @@
         <button id="btn-today" class="nav-btn">Today</button>
         <button id="btn-next" class="nav-btn">Next →</button>
       </div>
-      <h2 id="month-label">May 2026</h2>
+      <h2 id="month-label">June 2026</h2>
+      <button id="btn-add-event" class="add-event-btn">+ Add Event</button>
     </nav>
     <div id="loading-spinner" role="status"><div class="spinner-ring"></div> Loading…</div>
     <div id="cal-grid"></div>
   </section>
 
-  <footer class="site-footer">Connelly Family &nbsp;·&nbsp; Private page &nbsp;·&nbsp; v2.0</footer>
+  <footer class="site-footer">Connelly Family &nbsp;·&nbsp; Private page &nbsp;·&nbsp; v2.1</footer>
+
+  <!-- ── Add Event Modal ───────────────────────────────────── -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Add Event</span>
+        <button id="modal-close" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Title -->
+        <div class="form-field">
+          <label for="ev-title">Event Title</label>
+          <input type="text" id="ev-title" placeholder="What's happening?" />
+        </div>
+
+        <!-- Calendar (Family only) -->
+        <div class="form-field">
+          <label>Calendar</label>
+          <div class="cal-pills">
+            <div class="cal-pill family active">🟢 Family</div>
+            <div class="cal-pill disabled">🔵 Other</div>
+            <div class="cal-pill disabled">🟠 Work</div>
+          </div>
+        </div>
+
+        <!-- All day toggle -->
+        <div class="toggle-row">
+          <span class="toggle-label">All day</span>
+          <label class="toggle">
+            <input type="checkbox" id="ev-allday" checked />
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+
+        <!-- Dates -->
+        <div class="date-row">
+          <div class="form-field">
+            <label for="ev-start-date">Start Date</label>
+            <input type="date" id="ev-start-date" />
+          </div>
+          <div class="form-field">
+            <label for="ev-end-date">End Date</label>
+            <input type="date" id="ev-end-date" />
+          </div>
+        </div>
+
+        <!-- Times (hidden when all day) -->
+        <div id="time-fields" style="display:none">
+          <div class="time-row">
+            <div class="form-field">
+              <label for="ev-start-time">Start Time</label>
+              <div class="time-input-wrap">
+                <input type="time" id="ev-start-time" value="09:00" />
+                <span class="tz-label" id="tz-label">MDT</span>
+              </div>
+            </div>
+            <div class="time-sep">→</div>
+            <div class="form-field">
+              <label for="ev-end-time">End Time</label>
+              <div class="time-input-wrap">
+                <input type="time" id="ev-end-time" value="10:00" />
+                <span class="tz-label" id="tz-label2">MDT</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p id="form-error" class="form-error" style="display:none"></p>
+        <p id="form-success" class="form-success" style="display:none">✅ Event added! Refresh to see it.</p>
+
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn-cancel">Cancel</button>
+        <button id="modal-save" class="btn-save">Save Event</button>
+      </div>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script src="js/app.js"></script>
