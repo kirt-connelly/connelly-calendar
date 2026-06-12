@@ -1,5 +1,5 @@
 // ============================================================
-//  CONNELLY FAMILY CALENDAR — MAIN APP v2.1
+//  CONNELLY FAMILY CALENDAR — MAIN APP v2.2
 // ============================================================
 (function () {
   "use strict";
@@ -38,13 +38,12 @@
     return sessionStorage.getItem("calAuth") === CONFIG.passwordHash;
   }
 
-  // ── Timezone label (MST vs MDT) ────────────────────────────
+  // ── Timezone label ─────────────────────────────────────────
   function getMtnTzLabel() {
-    // MDT: 2nd Sun March – 1st Sun November
     const now = new Date();
-    const year = now.getFullYear();
-    const dstStart = getNthSunday(year, 2, 2);  // 2nd Sunday of March
-    const dstEnd   = getNthSunday(year, 10, 1); // 1st Sunday of November
+    const y = now.getFullYear();
+    const dstStart = getNthSunday(y, 3, 2);
+    const dstEnd   = getNthSunday(y, 11, 1);
     return (now >= dstStart && now < dstEnd) ? 'MDT' : 'MST';
   }
 
@@ -143,31 +142,8 @@
     const usedRows = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
     const overflow = Array.from({length: numWeeks}, () => Array(7).fill(0));
 
-    sorted.forEach(ev => {
-      const evStart = d0(ev.start), evEnd = d0(ev.end);
-      for (let week = 0; week < numWeeks; week++) {
-        const weekCells = cellDates.slice(week * 7, week * 7 + 7);
-        const cols = weekCells.reduce((acc, {date}, col) => { if (date >= evStart && date <= evEnd) acc.push(col); return acc; }, []);
-        if (cols.length === 0) continue;
-
-        let chosenRow = -1;
-        for (let r = 0; r < MAX_ROWS; r++) {
-          if (cols.every(col => !usedRows[week][col][r])) { chosenRow = r; break; }
-        }
-        if (chosenRow === -1) { cols.forEach(col => overflow[week][col]++); continue; }
-        cols.forEach(col => usedRows[week][col][chosenRow] = true);
-
-        const firstCol = cols[0], span = cols.length;
-        const slot = weekRows[week]?.querySelector(`.event-row:nth-child(${chosenRow + 2})`);
-
-        // Store for rendering after building week elements
-        ev._placements = ev._placements || [];
-        ev._placements.push({ week, firstCol, span, chosenRow });
-      }
-    });
-
-    // Build week DOM
-    const weekRows = [];
+    // Build week DOM first
+    const weekAreas = [];
     for (let week = 0; week < numWeeks; week++) {
       const weekEl = document.createElement("div");
       weekEl.className = "week-row";
@@ -185,39 +161,36 @@
 
       const eventsArea = document.createElement("div");
       eventsArea.className = "week-events";
-
-      // Create MAX_ROWS event rows
       for (let r = 0; r < MAX_ROWS; r++) {
         const rowEl = document.createElement("div");
         rowEl.className = "event-row";
         eventsArea.appendChild(rowEl);
       }
-
       weekEl.appendChild(eventsArea);
       grid.appendChild(weekEl);
-      weekRows.push(eventsArea);
+      weekAreas.push(eventsArea);
     }
 
-    // Place event pills
+    // Place events
     sorted.forEach(ev => {
       const evStart = d0(ev.start), evEnd = d0(ev.end);
+
       for (let week = 0; week < numWeeks; week++) {
         const weekCells = cellDates.slice(week * 7, week * 7 + 7);
-        const cols = weekCells.reduce((acc, {date}, col) => { if (date >= evStart && date <= evEnd) acc.push(col); return acc; }, []);
+        const cols = weekCells.reduce((acc, {date}, col) => {
+          if (date >= evStart && date <= evEnd) acc.push(col);
+          return acc;
+        }, []);
         if (cols.length === 0) continue;
 
-        // Find chosen row from usedRows
         let chosenRow = -1;
         for (let r = 0; r < MAX_ROWS; r++) {
-          if (cols.every(col => usedRows[week][col][r] === true)) {
-            // Check it was set by THIS event by verifying all cols match
-            chosenRow = r; break;
-          }
+          if (cols.every(col => !usedRows[week][col][r])) { chosenRow = r; break; }
         }
-        if (chosenRow === -1) continue;
+        if (chosenRow === -1) { cols.forEach(col => overflow[week][col]++); continue; }
+        cols.forEach(col => usedRows[week][col][chosenRow] = true);
 
-        const eventsArea = weekRows[week];
-        const rowEl = eventsArea.children[chosenRow];
+        const rowEl = weekAreas[week].children[chosenRow];
         if (!rowEl) continue;
 
         const pill = document.createElement("div");
@@ -246,7 +219,7 @@
           if (count > 0) cell.textContent = `+${count} more`;
           ovRow.appendChild(cell);
         });
-        weekRows[week].appendChild(ovRow);
+        weekAreas[week].appendChild(ovRow);
       }
     }
   }
@@ -268,11 +241,9 @@
     document.getElementById("form-success").style.display = "none";
     document.getElementById("modal-save").disabled = false;
     document.getElementById("modal-save").textContent = "Save Event";
-
-    const tzLabel = getMtnTzLabel();
-    document.getElementById("tz-label").textContent = tzLabel;
-    document.getElementById("tz-label2").textContent = tzLabel;
-
+    const tz = getMtnTzLabel();
+    document.getElementById("tz-label").textContent = tz;
+    document.getElementById("tz-label2").textContent = tz;
     document.getElementById("modal-overlay").style.display = "flex";
     document.getElementById("ev-title").focus();
   }
@@ -288,13 +259,12 @@
     const allDay    = document.getElementById("ev-allday").checked;
     const startTime = document.getElementById("ev-start-time").value;
     const endTime   = document.getElementById("ev-end-time").value;
-
-    const errorEl = document.getElementById("form-error");
+    const errorEl   = document.getElementById("form-error");
     errorEl.style.display = "none";
 
-    if (!title) { errorEl.textContent = "Please enter an event title."; errorEl.style.display = "block"; return; }
-    if (!startDate) { errorEl.textContent = "Please select a start date."; errorEl.style.display = "block"; return; }
-    if (!endDate) { errorEl.textContent = "Please select an end date."; errorEl.style.display = "block"; return; }
+    if (!title)     { errorEl.textContent = "Please enter an event title."; errorEl.style.display = "block"; return; }
+    if (!startDate) { errorEl.textContent = "Please select a start date.";  errorEl.style.display = "block"; return; }
+    if (!endDate)   { errorEl.textContent = "Please select an end date.";   errorEl.style.display = "block"; return; }
     if (endDate < startDate) { errorEl.textContent = "End date can't be before start date."; errorEl.style.display = "block"; return; }
 
     const saveBtn = document.getElementById("modal-save");
@@ -307,9 +277,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, startDate, endDate, allDay, startTime, endTime }),
       });
-
       const data = await resp.json();
-
       if (data.success) {
         document.getElementById("form-success").style.display = "block";
         saveBtn.textContent = "Saved!";
@@ -355,7 +323,6 @@
       if (e.key === "Enter") checkPassword();
       document.getElementById("pw-error").style.display = "none";
     });
-
     document.getElementById("btn-prev").addEventListener("click", prevMonth);
     document.getElementById("btn-next").addEventListener("click", nextMonth);
     document.getElementById("btn-today").addEventListener("click", goToday);
@@ -364,15 +331,12 @@
     document.getElementById("modal-cancel").addEventListener("click", closeModal);
     document.getElementById("modal-save").addEventListener("click", saveEvent);
     document.getElementById("modal-overlay").addEventListener("click", e => { if (e.target === e.currentTarget) closeModal(); });
-
     document.getElementById("ev-allday").addEventListener("change", function() {
       document.getElementById("time-fields").style.display = this.checked ? "none" : "block";
     });
-
     document.getElementById("ev-start-date").addEventListener("change", function() {
-      if (document.getElementById("ev-end-date").value < this.value) {
+      if (document.getElementById("ev-end-date").value < this.value)
         document.getElementById("ev-end-date").value = this.value;
-      }
     });
 
     if (isAuthenticated()) showCalendar();
