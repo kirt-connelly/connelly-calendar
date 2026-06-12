@@ -76,13 +76,13 @@ body {
 #btn-today { font-weight: 500; color: #1a3a2a; border-color: #1a3a2a; }
 
 .add-event-btn {
-  padding: 7px 16px;
+  padding: 6px 14px;
   background: #1a3a2a;
   color: white;
   border: none;
   border-radius: 7px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s;
 }
