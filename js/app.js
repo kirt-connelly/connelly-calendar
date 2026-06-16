@@ -298,15 +298,15 @@
   }
 
   // ── UI ─────────────────────────────────────────────────────
-  function showCalendar() {
-    document.getElementById("lock-screen").style.display = "none";
-    document.getElementById("cal-wrapper").style.display = "block";
+  function buildLegend() {
     const legend = document.getElementById("legend");
     legend.innerHTML = "";
     CONFIG.calendars.forEach(cal => {
       const item = document.createElement("div");
       item.className = "legend-item";
       item.style.cursor = "pointer";
+      item.style.transition = "opacity 0.15s";
+      item.style.userSelect = "none";
       item.dataset.calId = cal.id;
       item.innerHTML = `<span class="legend-dot" style="background:${cal.color}"></span>${cal.name}`;
       item.addEventListener("click", () => {
@@ -321,6 +321,12 @@
       });
       legend.appendChild(item);
     });
+  }
+
+  function showCalendar() {
+    document.getElementById("lock-screen").style.display = "none";
+    document.getElementById("cal-wrapper").style.display = "block";
+    buildLegend();
     loadAllEvents();
   }
 
