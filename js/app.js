@@ -172,6 +172,13 @@
       weekAreas.push(eventsArea);
     }
 
+    // Per-week, per-column: track next available row
+    // This prevents gaps — each column packs events tightly
+    const colNextRow = Array.from({length: numWeeks}, () => Array(7).fill(0));
+    // But multi-day events need same row across their cols — use reservation grid
+    const usedRows = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
+    const overflow = Array.from({length: numWeeks}, () => Array(7).fill(0));
+
     // Place events
     sorted.forEach(ev => {
       const evStart = d0(ev.start), evEnd = d0(ev.end);
@@ -184,12 +191,26 @@
         }, []);
         if (cols.length === 0) continue;
 
+        // For single-day events, use per-column next row (no gap)
+        // For multi-day events, find first row free across ALL cols
         let chosenRow = -1;
-        for (let r = 0; r < MAX_ROWS; r++) {
-          if (cols.every(col => !usedRows[week][col][r])) { chosenRow = r; break; }
+        if (cols.length === 1) {
+          // Single day — use next available row for this column
+          chosenRow = colNextRow[week][cols[0]];
+          if (chosenRow >= MAX_ROWS) { overflow[week][cols[0]]++; continue; }
+        } else {
+          // Multi-day — need same row across all cols
+          for (let r = 0; r < MAX_ROWS; r++) {
+            if (cols.every(col => !usedRows[week][col][r])) { chosenRow = r; break; }
+          }
+          if (chosenRow === -1) { cols.forEach(col => overflow[week][col]++); continue; }
         }
-        if (chosenRow === -1) { cols.forEach(col => overflow[week][col]++); continue; }
-        cols.forEach(col => usedRows[week][col][chosenRow] = true);
+
+        // Mark used
+        cols.forEach(col => {
+          usedRows[week][col][chosenRow] = true;
+          if (colNextRow[week][col] <= chosenRow) colNextRow[week][col] = chosenRow + 1;
+        });
 
         const rowEl = weekAreas[week].children[chosenRow];
         if (!rowEl) continue;
