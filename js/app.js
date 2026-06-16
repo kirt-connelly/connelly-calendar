@@ -135,9 +135,9 @@
     }
 
     const sorted = [...allEvents].filter(ev => !disabledCals.has(ev.calId)).sort((a, b) => {
-      const aSpan = d0(b.end) - d0(b.start);
-      const bSpan = d0(a.end) - d0(a.start);
-      return aSpan - bSpan || a.start - b.start;
+      const aSpan = d0(a.end) - d0(a.start); // longest first
+      const bSpan = d0(b.end) - d0(b.start);
+      return bSpan - aSpan || a.start - b.start;
     });
 
     const usedRows = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
