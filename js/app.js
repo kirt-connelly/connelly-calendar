@@ -162,11 +162,7 @@
 
       const eventsArea = document.createElement("div");
       eventsArea.className = "week-events";
-      for (let r = 0; r < MAX_ROWS; r++) {
-        const rowEl = document.createElement("div");
-        rowEl.className = "event-row";
-        eventsArea.appendChild(rowEl);
-      }
+      // Don't pre-create rows — we'll add them dynamically as needed
       weekEl.appendChild(eventsArea);
       grid.appendChild(weekEl);
       weekAreas.push(eventsArea);
@@ -212,7 +208,17 @@
           if (colNextRow[week][col] <= chosenRow) colNextRow[week][col] = chosenRow + 1;
         });
 
-        const rowEl = weekAreas[week].children[chosenRow];
+        // Get or create the row element
+        let rowEl = weekAreas[week].children[chosenRow];
+        if (!rowEl) {
+          // Create rows up to chosenRow
+          while (weekAreas[week].children.length <= chosenRow) {
+            const newRow = document.createElement("div");
+            newRow.className = "event-row";
+            weekAreas[week].appendChild(newRow);
+          }
+          rowEl = weekAreas[week].children[chosenRow];
+        }
         if (!rowEl) continue;
 
         const pill = document.createElement("div");

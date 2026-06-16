@@ -162,6 +162,10 @@ body {
   position: relative; z-index: 1;
 }
 
+.event-row:empty {
+  display: none;
+}
+
 .event-pill {
   height: 18px; margin: 0 2px;
   padding: 0 5px; border-radius: 3px;
