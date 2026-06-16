@@ -11,6 +11,7 @@
   let currentMonth = new Date().getMonth();
   let allEvents    = [];
   const today      = new Date();
+  const disabledCals = new Set(); // calendar IDs that are toggled off
 
   const MONTH_NAMES = ["January","February","March","April","May","June",
     "July","August","September","October","November","December"];
@@ -76,7 +77,7 @@
         const start  = allDay ? new Date(ev.start.date + "T00:00:00") : new Date(ev.start.dateTime);
         let   end    = allDay ? new Date(ev.end.date   + "T00:00:00") : new Date(ev.end.dateTime);
         if (allDay) end.setDate(end.getDate() - 1);
-        return { title: ev.summary || "(private)", start, end, allDay, bgColor: cal.bgColor, textColor: cal.textColor };
+        return { title: ev.summary || "(private)", start, end, allDay, bgColor: cal.bgColor, textColor: cal.textColor, calId: cal.id };
       });
     } catch(e) { console.warn("Calendar load failed:", cal.name, e); return []; }
   }
@@ -133,7 +134,7 @@
       cellDates.push({ date: d0(date), inMonth });
     }
 
-    const sorted = [...allEvents].sort((a, b) => {
+    const sorted = [...allEvents].filter(ev => !disabledCals.has(ev.calId)).sort((a, b) => {
       const aSpan = d0(b.end) - d0(b.start);
       const bSpan = d0(a.end) - d0(a.start);
       return aSpan - bSpan || a.start - b.start;
@@ -305,7 +306,19 @@
     CONFIG.calendars.forEach(cal => {
       const item = document.createElement("div");
       item.className = "legend-item";
+      item.style.cursor = "pointer";
+      item.dataset.calId = cal.id;
       item.innerHTML = `<span class="legend-dot" style="background:${cal.color}"></span>${cal.name}`;
+      item.addEventListener("click", () => {
+        if (disabledCals.has(cal.id)) {
+          disabledCals.delete(cal.id);
+          item.style.opacity = "1";
+        } else {
+          disabledCals.add(cal.id);
+          item.style.opacity = "0.35";
+        }
+        renderGrid();
+      });
       legend.appendChild(item);
     });
     loadAllEvents();
