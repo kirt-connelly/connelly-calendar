@@ -140,9 +140,8 @@ body {
 
 .week-events {
   grid-row: 2; grid-column: 1 / 8;
-  display: grid; grid-template-columns: repeat(7, 1fr);
-  position: relative; padding-bottom: 4px;
-  min-height: 22px;
+  position: relative;
+  border-top: none;
 }
 
 .week-events::before {
@@ -155,31 +154,24 @@ body {
   pointer-events: none; z-index: 0;
 }
 
-.event-row {
-  grid-column: 1 / 8; display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  height: 20px; margin: 1px 0;
-  position: relative; z-index: 1;
-}
-
-.event-row:empty {
-  display: none;
-}
-
 .event-pill {
-  height: 18px; margin: 0 2px;
-  padding: 0 5px; border-radius: 3px;
+  box-sizing: border-box;
+  padding: 0 5px;
+  border-radius: 3px;
   font-size: 11px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  line-height: 18px; cursor: default; position: relative; z-index: 2;
+  line-height: 20px; cursor: default;
+  z-index: 1;
+  padding-right: 3px;
 }
 
-.overflow-row {
-  grid-column: 1 / 8; display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  position: relative; z-index: 1;
+.overflow-badge {
+  position: absolute;
+  bottom: 1px;
+  font-size: 10px; color: #888; font-weight: 500;
+  padding: 0 5px;
+  z-index: 2;
 }
-.overflow-cell { font-size: 10px; color: #888; font-weight: 500; padding: 1px 6px; }
 
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
