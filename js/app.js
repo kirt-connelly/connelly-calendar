@@ -140,9 +140,6 @@
       return bSpan - aSpan || a.start - b.start;
     });
 
-    const usedRows = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
-    const overflow = Array.from({length: numWeeks}, () => Array(7).fill(0));
-
     // Build week DOM first
     const weekAreas = [];
     for (let week = 0; week < numWeeks; week++) {
@@ -169,11 +166,9 @@
     }
 
     // Per-week, per-column: track next available row
-    // This prevents gaps — each column packs events tightly
     const colNextRow = Array.from({length: numWeeks}, () => Array(7).fill(0));
-    // But multi-day events need same row across their cols — use reservation grid
-    const usedRows = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
-    const overflow = Array.from({length: numWeeks}, () => Array(7).fill(0));
+    const usedRows   = Array.from({length: numWeeks}, () => Array.from({length: 7}, () => Array(MAX_ROWS).fill(false)));
+    const overflow   = Array.from({length: numWeeks}, () => Array(7).fill(0));
 
     // Place events
     sorted.forEach(ev => {
