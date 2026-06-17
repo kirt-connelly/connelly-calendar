@@ -75,6 +75,27 @@
     } catch(e) { console.warn("Failed:", calConfig.name, e); return []; }
   }
 
+  // ── Event detail popup ─────────────────────────────────────
+  let activePopup = null;
+  function showPopup(title, detail, anchorEl) {
+    if (activePopup) { activePopup.remove(); activePopup = null; }
+    const popup = document.createElement("div");
+    popup.className = "event-popup";
+    popup.innerHTML = `
+      <div class="event-popup-title">${title}</div>
+      <div class="event-popup-detail">${detail}</div>
+    `;
+    document.body.appendChild(popup);
+    activePopup = popup;
+
+    const rect = anchorEl.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    popup.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+    popup.style.top  = `${rect.bottom + scrollY + 4}px`;
+
+    setTimeout(() => { document.addEventListener("click", () => { popup.remove(); activePopup = null; }, { once: true }); }, 0);
+  }
+
   // ── Initialize FullCalendar ────────────────────────────────
   function initCalendar() {
     const el = document.getElementById("calendar");
@@ -83,8 +104,8 @@
       initialView: 'dayGridMonth',
       headerToolbar: {
         left:   'prev,today,next',
-        center: 'title',
-        right:  ''
+        center: '',
+        right:  'title'
       },
       height: 'auto',
       firstDay: 0,
@@ -101,7 +122,18 @@
         }
       },
 
-      // Load events dynamically when month changes
+      // Click event for details
+      eventClick: function(info) {
+        info.jsEvent.preventDefault();
+        const ev = info.event;
+        const start = ev.start ? ev.start.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) : '';
+        const end   = ev.end   ? ev.end.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) : '';
+        const time  = ev.allDay ? 'All day' : ev.start.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+        let detail  = start;
+        if (end && end !== start) detail += ` – ${end}`;
+        if (!ev.allDay) detail += ` · ${time}`;
+        showPopup(ev.title, detail, info.el);
+      },
       events: async function(fetchInfo, successCallback, failureCallback) {
         try {
           const activeCals = CONFIG.calendars.filter(c => !disabledCals.has(c.id));

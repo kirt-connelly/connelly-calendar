@@ -186,6 +186,29 @@ body {
 /* Remove blue today highlight ring */
 .fc .fc-day-today .fc-daygrid-bg-harness { background: transparent !important; }
 
+/* ── Event popup ─────────────────────────────────────────── */
+.event-popup {
+  position: absolute;
+  z-index: 9999;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  padding: 12px 16px;
+  min-width: 200px;
+  max-width: 280px;
+  border: 0.5px solid #e0e0dc;
+}
+.event-popup-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a18;
+  margin-bottom: 4px;
+}
+.event-popup-detail {
+  font-size: 12px;
+  color: #666;
+}
+
 /* ── Footer ──────────────────────────────────────────────── */
 .site-footer { margin-top: 16px; font-size: 12px; color: #aaa; text-align: center; }
 
