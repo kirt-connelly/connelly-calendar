@@ -107,6 +107,11 @@
         center: '',
         right:  'title'
       },
+      eventTimeFormat: {
+        hour: 'numeric',
+        minute: '2-digit',
+        meridiem: 'short'
+      },
       height: 'auto',
       firstDay: 0,
       eventDisplay: 'block',
