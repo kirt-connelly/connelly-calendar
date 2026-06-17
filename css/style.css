@@ -232,7 +232,10 @@ body {
   font-weight: 500;
 }
 
-.fc .fc-daygrid-event-dot { display: none !important; }
+.fc .fc-daygrid-day-frame {
+  min-height: 80px !important;
+  max-height: 140px !important;
+}
 
 .fc .fc-more-link {
   font-size: 10px;

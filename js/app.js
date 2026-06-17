@@ -118,7 +118,6 @@
         meridiem: 'short'
       },
       fixedWeekCount: false,
-      showNonCurrentDates: false,
       firstDay: 0,
       eventDisplay: 'block',
       dayMaxEvents: 5,
@@ -238,10 +237,6 @@
 
   // ── Init ───────────────────────────────────────────────────
   function init() {
-    // Clear any stale v2.x session tokens
-    if (sessionStorage.getItem("calAuth") && !calendar) {
-      sessionStorage.removeItem("calAuth");
-    }
     document.getElementById("site-name").textContent = CONFIG.siteName;
     const sub = document.getElementById("site-sub");
     if (CONFIG.siteSubtitle) sub.textContent = CONFIG.siteSubtitle; else sub.style.display = "none";
