@@ -102,7 +102,7 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Calendar grid ───────────────────────────────────────── */
-#cal-grid { width: 100%; }
+#cal-grid { width: 100%; border-left: 0.5px solid #e8e8e4; }
 
 .dow-row {
   display: grid; grid-template-columns: repeat(7, 1fr);
@@ -112,6 +112,7 @@ body {
   text-align: center; font-size: 11px; font-weight: 600;
   color: #888; padding: 8px 4px;
   text-transform: uppercase; letter-spacing: 0.6px;
+  border-right: 0.5px solid #e8e8e4;
 }
 
 .week-row {
@@ -127,8 +128,8 @@ body {
   border-right: 0.5px solid #e8e8e4;
   padding: 4px 6px;
   font-size: 12px; color: #555;
+  background: white;
 }
-.day-num-cell:last-child { border-right: none; }
 .day-num-cell.other-month { background: #fafaf8; color: #ccc; }
 
 .day-num {
@@ -141,35 +142,31 @@ body {
   grid-row: 2; grid-column: 1 / 8;
   position: relative;
   min-height: 24px;
-  padding-bottom: 4px;
-}
-
-.week-events::before {
-  content: '';
-  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
-  background: repeating-linear-gradient(
-    90deg, transparent, transparent calc(100% / 7 - 0.5px),
-    #e8e8e4 calc(100% / 7 - 0.5px), #e8e8e4 calc(100% / 7)
+  padding-bottom: 6px;
+  /* Vertical grid lines through event area */
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(100% / 7 - 0.5px),
+    #e8e8e4 calc(100% / 7 - 0.5px),
+    #e8e8e4 calc(100% / 7)
   );
-  pointer-events: none; z-index: 0;
 }
 
 .event-pill {
   box-sizing: border-box;
-  padding: 0 5px;
+  padding: 0 6px;
   border-radius: 3px;
   font-size: 11px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   line-height: 20px; cursor: default;
   z-index: 1;
-  padding-right: 3px;
 }
 
 .overflow-badge {
   position: absolute;
-  bottom: 1px;
   font-size: 10px; color: #888; font-weight: 500;
-  padding: 0 5px;
+  padding: 1px 6px;
   z-index: 2;
 }
 

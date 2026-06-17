@@ -180,8 +180,8 @@
 
       placed.filter(p=>p.row>=0).forEach(p => {
         const pct = 100/7;
-        const left  = p.cols[0] * pct;
-        const width = p.cols.length * pct;
+        const left  = p.cols[0] * pct + 0.15;
+        const width = p.cols.length * pct - 0.3;
         const top   = p.row * (ROW_H+ROW_GAP) + ROW_GAP;
 
         const pill = document.createElement("div");
