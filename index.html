@@ -6,7 +6,11 @@
   <title>Connelly Family Calendar</title>
   <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏡</text></svg>" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -16,37 +20,27 @@
       <div id="site-name">Connelly Family Calendar</div>
       <div id="site-sub"></div>
     </div>
-    <div id="legend" role="list" aria-label="Calendar legend"></div>
+    <div id="legend"></div>
   </header>
 
   <main id="lock-screen">
-    <i class="ti ti-lock lock-icon" aria-hidden="true"></i>
+    <i class="lock-icon">🔒</i>
     <h1 class="lock-title">Welcome to the Connelly Family Calendar</h1>
     <p class="lock-sub">Enter the family password to view events</p>
     <div class="pw-row">
-      <input id="pw-input" type="password" placeholder="Family password" autocomplete="current-password" aria-label="Family password" />
+      <input id="pw-input" type="password" placeholder="Family password" autocomplete="current-password" />
       <button id="pw-btn" type="button">Enter</button>
     </div>
-    <p id="pw-error" role="alert">Incorrect password — try again</p>
+    <p id="pw-error">Incorrect password — try again</p>
   </main>
 
   <section id="cal-wrapper">
-    <nav class="cal-nav">
-      <div class="nav-btns">
-        <button id="btn-prev" class="nav-btn">← Prev</button>
-        <button id="btn-today" class="nav-btn">Today</button>
-        <button id="btn-next" class="nav-btn">Next →</button>
-        <button id="btn-add-event" class="add-event-btn" style="display:none">+ Add Event</button>
-      </div>
-      <h2 id="month-label">June 2026</h2>
-    </nav>
-    <div id="loading-spinner" role="status"><div class="spinner-ring"></div> Loading…</div>
-    <div id="cal-grid"></div>
+    <div id="calendar"></div>
   </section>
 
-  <footer class="site-footer">Connelly Family &nbsp;·&nbsp; Private page &nbsp;·&nbsp; v2.13</footer>
+  <footer class="site-footer">Connelly Family &nbsp;·&nbsp; Private page &nbsp;·&nbsp; v3.00</footer>
 
-  <!-- ── Add Event Modal ───────────────────────────────────── -->
+  <!-- Add Event Modal -->
   <div id="modal-overlay" class="modal-overlay" style="display:none">
     <div class="modal-card">
       <div class="modal-header">
@@ -54,14 +48,10 @@
         <button id="modal-close" class="modal-close">✕</button>
       </div>
       <div class="modal-body">
-
-        <!-- Title -->
         <div class="form-field">
           <label for="ev-title">Event Title</label>
           <input type="text" id="ev-title" placeholder="What's happening?" />
         </div>
-
-        <!-- Calendar (Family only) -->
         <div class="form-field">
           <label>Calendar</label>
           <div class="cal-pills">
@@ -70,8 +60,6 @@
             <div class="cal-pill disabled">🟠 Work</div>
           </div>
         </div>
-
-        <!-- All day toggle -->
         <div class="toggle-row">
           <span class="toggle-label">All day</span>
           <label class="toggle">
@@ -79,8 +67,6 @@
             <div class="toggle-track"></div>
           </label>
         </div>
-
-        <!-- Dates -->
         <div class="date-row">
           <div class="form-field">
             <label for="ev-start-date">Start Date</label>
@@ -91,12 +77,10 @@
             <input type="date" id="ev-end-date" />
           </div>
         </div>
-
-        <!-- Times (hidden when all day) -->
         <div id="time-fields" style="display:none">
           <div class="time-row">
             <div class="form-field">
-              <label for="ev-start-time">Start Time</label>
+              <label>Start Time</label>
               <div class="time-input-wrap">
                 <input type="time" id="ev-start-time" value="09:00" />
                 <span class="tz-label" id="tz-label">MDT</span>
@@ -104,7 +88,7 @@
             </div>
             <div class="time-sep">→</div>
             <div class="form-field">
-              <label for="ev-end-time">End Time</label>
+              <label>End Time</label>
               <div class="time-input-wrap">
                 <input type="time" id="ev-end-time" value="10:00" />
                 <span class="tz-label" id="tz-label2">MDT</span>
@@ -112,10 +96,8 @@
             </div>
           </div>
         </div>
-
         <p id="form-error" class="form-error" style="display:none"></p>
-        <p id="form-success" class="form-success" style="display:none">✅ Event added! Refresh to see it.</p>
-
+        <p id="form-success" class="form-success" style="display:none">✅ Event added!</p>
       </div>
       <div class="modal-footer">
         <button id="modal-cancel" class="btn-cancel">Cancel</button>
