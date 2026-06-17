@@ -107,24 +107,31 @@
         center: '',
         right:  'title'
       },
+      buttonText: {
+        today: 'Today',
+        prev:  '← Prev',
+        next:  'Next →'
+      },
       eventTimeFormat: {
         hour: 'numeric',
         minute: '2-digit',
         meridiem: 'short'
       },
-      height: 'auto',
+      fixedWeekCount: false,
+      showNonCurrentDates: false,
       firstDay: 0,
       eventDisplay: 'block',
       dayMaxEvents: 5,
 
       // Custom event colors already set per-event
       eventDidMount: function(info) {
+        // Force pointer cursor
+        info.el.style.cursor = 'pointer';
+        if (info.el.querySelector('a')) info.el.querySelector('a').style.cursor = 'pointer';
         // Grey out past events
         const endDate = new Date(info.event.end || info.event.start);
         const tod = new Date(); tod.setHours(0,0,0,0);
-        if (endDate < tod) {
-          info.el.style.opacity = '0.45';
-        }
+        if (endDate < tod) info.el.style.opacity = '0.45';
       },
 
       // Click event for details

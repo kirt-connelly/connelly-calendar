@@ -78,6 +78,8 @@ body {
   padding: 12px 20px;
   border-bottom: 0.5px solid #e8e8e4;
   margin-bottom: 0 !important;
+  display: flex;
+  align-items: center;
 }
 
 .fc .fc-toolbar-title {
@@ -96,22 +98,43 @@ body {
   padding: 6px 14px !important;
   box-shadow: none !important;
   text-transform: none !important;
+  letter-spacing: 0 !important;
+  line-height: 1.4 !important;
 }
 
 .fc .fc-button:hover {
   background: #f4f4f0 !important;
+  border-color: #bbb !important;
+}
+
+.fc .fc-button:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.fc .fc-button-group {
+  gap: 6px !important;
+  display: flex !important;
+}
+
+.fc .fc-button-group .fc-button {
+  border-radius: 7px !important;
+  margin: 0 !important;
 }
 
 .fc .fc-today-button {
   color: #1a3a2a !important;
   border-color: #1a3a2a !important;
+  font-weight: 600 !important;
 }
 
-.fc .fc-button:disabled {
+.fc .fc-today-button:disabled {
   opacity: 0.4 !important;
 }
 
-/* Day headers */
+.fc .fc-button .fc-icon {
+  display: none !important;
+}
 .fc .fc-col-header-cell {
   background: #fafaf8;
   padding: 8px 4px;
