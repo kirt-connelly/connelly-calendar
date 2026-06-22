@@ -28,6 +28,13 @@ const CONFIG = {
       bgColor: "#f09595",
       textColor: "#501313",
       id: "en.usa#holiday@group.v.calendar.google.com"
+    },
+    {
+      name: "Trevor Family",
+      color: "#7c3aed",
+      bgColor: "#c4b5fd",
+      textColor: "#3b0764",
+      id: "angelrocks1515@gmail.com"
     }
   ],
   siteName: "Connelly Family Calendar",
